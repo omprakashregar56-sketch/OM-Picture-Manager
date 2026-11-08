@@ -1,0 +1,6 @@
+APP_NAME = "OM Picture Manager"
+APP_SUBTITLE = "Material Soft Studio"
+DEFAULT_PALETTE = "Lavender"
+WINDOW_WIDTH = 1320
+WINDOW_HEIGHT = 840
+KB_PRESETS = ["10 KB", "20 KB", "50 KB", "100 KB", "200 KB", "500 KB"]
