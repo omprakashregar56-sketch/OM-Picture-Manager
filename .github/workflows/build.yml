@@ -24,9 +24,13 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build Standalone Exe
+      - name: Generate Official OM Studio Logo
         run: |
-          pyinstaller --noconsole --onedir --name "OM_Picture_Manager" main.py
+          python generate_icon.py
+
+      - name: Build Standalone Exe with Embedded Icon
+        run: |
+          pyinstaller --noconsole --onedir --icon="app_icon.ico" --add-data "app_icon.png;." --name "OM_Picture_Manager" main.py
 
       - name: Compress Directory into Zip
         run: |
