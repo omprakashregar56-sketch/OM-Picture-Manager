@@ -2,10 +2,10 @@ import sys
 import os
 import io
 from PIL import Image, ImageEnhance
-from PyQt6.QtCore import Qt, QRectF, QPointF, QSize, QSettings
+from PyQt6.QtCore import Qt, QRectF, QSize, QSettings
 from PyQt6.QtGui import (
     QAction, QIcon, QPixmap, QImage, QPainter, QColor, 
-    QPen, QKeySequence, QBrush, QFont, QTransform
+    QPen, QKeySequence, QBrush, QFont
 )
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -91,7 +91,7 @@ class CropOverlay(QGraphicsRectItem):
         self.setBrush(QBrush(QColor(0, 242, 254, 45)))
         self.setVisible(False)
 
-# ----------------- ADVANCED INTERACTIVE VIEWER (ZOOM + PAN + DRAG) -----------------
+# ----------------- INTERACTIVE VIEWER (ZOOM + PAN) -----------------
 class InteractiveViewer(QGraphicsView):
     def __init__(self, main_window):
         super().__init__()
@@ -142,7 +142,7 @@ class InteractiveViewer(QGraphicsView):
         self.setDragMode(QGraphicsView.DragMode.NoDrag)
         super().mouseReleaseEvent(event)
 
-# ----------------- MAIN STUDIO -----------------
+# ----------------- MAIN WINDOW -----------------
 class OMPictureManager(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -158,6 +158,13 @@ class OMPictureManager(QMainWindow):
     def init_ui(self):
         self.setWindowTitle("OM Picture Manager - Pro Studio")
         self.resize(1340, 840)
+
+        # Title Bar और Taskbar पर लोगो सेट करें
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app_icon.png")
+        if os.path.exists(icon_path):
+            app_icon = QIcon(icon_path)
+            self.setWindowIcon(app_icon)
+            QApplication.setWindowIcon(app_icon)
 
         # Nunito Typography setup
         app_font = QFont("Nunito", 10)
@@ -188,14 +195,13 @@ class OMPictureManager(QMainWindow):
         exit_act.triggered.connect(self.close)
         file_menu.addAction(exit_act)
 
-        # Themes Menu
         theme_menu = menubar.addMenu("&Theme")
         for t_name in THEMES.keys():
             act = QAction(t_name, self)
             act.triggered.connect(lambda ch, t=t_name: self.set_active_theme(t))
             theme_menu.addAction(act)
 
-        # 2. Ribbon Quick Toolbar
+        # 2. Quick Toolbar
         toolbar = QToolBar("Quick Tools")
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
@@ -226,7 +232,7 @@ class OMPictureManager(QMainWindow):
         btn_reset.clicked.connect(self.reset_all_transforms)
         toolbar.addWidget(btn_reset)
 
-        # 3. Central Workspace
+        # 3. Main Workspace
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
@@ -235,7 +241,6 @@ class OMPictureManager(QMainWindow):
         splitter = QSplitter(Qt.Orientation.Horizontal)
         main_layout.addWidget(splitter)
 
-        # Left Section: Viewer & Gallery Strip
         left_box = QWidget()
         left_layout = QVBoxLayout(left_box)
         left_layout.setContentsMargins(0, 0, 0, 0)
@@ -243,7 +248,6 @@ class OMPictureManager(QMainWindow):
         self.viewer = InteractiveViewer(self)
         left_layout.addWidget(self.viewer, 4)
 
-        # Filmstrip
         self.filmstrip = QListWidget()
         self.filmstrip.setFixedHeight(105)
         self.filmstrip.setViewMode(QListWidget.ViewMode.IconMode)
@@ -254,18 +258,17 @@ class OMPictureManager(QMainWindow):
 
         splitter.addWidget(left_box)
 
-        # Right Section: Unified Tool Box
+        # Right Tool Box
         tool_box = QWidget()
         tool_box.setFixedWidth(330)
         box_layout = QVBoxLayout(tool_box)
         box_layout.setContentsMargins(6, 0, 0, 0)
 
-        # Tool Box Title
         lbl_tools = QLabel("⚡ STUDIO TOOL BOX")
         lbl_tools.setStyleSheet("font-weight: 800; letter-spacing: 1px; color: #00f2fe; margin-bottom: 4px;")
         box_layout.addWidget(lbl_tools)
 
-        # TOOL 1: Crop Setup
+        # 1. Crop Setup
         grp_crop = QGroupBox("1. Crop Selection")
         lay_crop = QGridLayout(grp_crop)
         btn_do_crop = QPushButton("✂️ Crop Box")
@@ -280,7 +283,7 @@ class OMPictureManager(QMainWindow):
         lay_crop.addWidget(btn_sign, 1, 1)
         box_layout.addWidget(grp_crop)
 
-        # TOOL 2: Straighten & Adjustments
+        # 2. Straighten & Colors
         grp_adj = QGroupBox("2. Straighten & Color Balance")
         lay_adj = QVBoxLayout(grp_adj)
 
@@ -306,7 +309,7 @@ class OMPictureManager(QMainWindow):
         lay_adj.addWidget(self.c_slider)
         box_layout.addWidget(grp_adj)
 
-        # TOOL 3: Resize & Size Setup
+        # 3. Resize & Size Setup
         grp_size = QGroupBox("3. Resize & Size Setup")
         lay_size = QGridLayout(grp_size)
 
@@ -331,7 +334,7 @@ class OMPictureManager(QMainWindow):
         lay_size.addWidget(btn_resize, 3, 0, 1, 2)
         box_layout.addWidget(grp_size)
 
-        # TOOL 4: Target KB Optimizer
+        # 4. Target KB Optimizer
         grp_kb = QGroupBox("4. Target Output Size (KB)")
         lay_kb = QGridLayout(grp_kb)
         self.combo_kb = QComboBox()
@@ -353,7 +356,6 @@ class OMPictureManager(QMainWindow):
         self.setStatusBar(self.status)
         self.status.showMessage("Ready • Open an image to begin")
 
-    # ----------------- THEMES & SETTINGS -----------------
     def set_active_theme(self, t_name):
         self.setStyleSheet(THEMES.get(t_name, THEMES["Cyber Neon (Dark)"]))
         self.settings.setValue("app_theme", t_name)
@@ -363,7 +365,6 @@ class OMPictureManager(QMainWindow):
         saved = self.settings.value("app_theme", "Cyber Neon (Dark)")
         self.set_active_theme(saved)
 
-    # ----------------- IMAGE ENGINE -----------------
     def open_file_dialog(self):
         path, _ = QFileDialog.getOpenFileName(self, "Open Photo", "", "Images (*.jpg *.jpeg *.png *.bmp)")
         if path:
@@ -383,7 +384,6 @@ class OMPictureManager(QMainWindow):
 
         self.render_canvas(self.current_pil_image)
 
-        # Filmstrip
         thumb = self.current_pil_image.copy()
         thumb.thumbnail((80, 80))
         t_io = io.BytesIO()
@@ -408,7 +408,6 @@ class OMPictureManager(QMainWindow):
         self.viewer.scene.setSceneRect(QRectF(pix.rect()))
         self.viewer.crop_box.setVisible(False)
 
-    # ----------------- PROPORTIONAL RESIZING -----------------
     def on_w_change(self, val):
         if self.chk_ratio.isChecked() and self.current_pil_image and self.current_pil_image.width > 0:
             ratio = self.current_pil_image.height / self.current_pil_image.width
@@ -432,7 +431,6 @@ class OMPictureManager(QMainWindow):
         self.render_canvas(self.current_pil_image)
         self.status.showMessage(f"Resized successfully to {nw}×{nh} px")
 
-    # ----------------- CROPPING -----------------
     def execute_crop(self):
         if not self.viewer.crop_box.isVisible() or not self.current_pil_image:
             return
@@ -474,7 +472,6 @@ class OMPictureManager(QMainWindow):
             self.render_canvas(self.current_pil_image)
             self.status.showMessage("Signature auto-cropped successfully!")
 
-    # ----------------- ADJUSTMENTS & ROTATE -----------------
     def rotate_quick(self, deg):
         if not self.current_pil_image:
             return
@@ -504,7 +501,6 @@ class OMPictureManager(QMainWindow):
         self.render_canvas(self.current_pil_image)
         self.status.showMessage("Transforms reset")
 
-    # ----------------- PRINTING -----------------
     def print_image(self):
         if not self.current_pil_image:
             return
@@ -524,7 +520,6 @@ class OMPictureManager(QMainWindow):
             painter.end()
             self.status.showMessage("Sent to printer")
 
-    # ----------------- KB EXPORT -----------------
     def export_target_kb(self):
         if not self.current_pil_image:
             return
