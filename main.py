@@ -2,7 +2,7 @@ import sys
 import os
 import io
 from PIL import Image, ImageEnhance
-from PyQt6.QtCore import Qt, QRectF, QSize, QSettings
+from PyQt6.QtCore import Qt, QRectF, QSize, QPoint, QSettings
 from PyQt6.QtGui import (
     QAction, QIcon, QPixmap, QImage, QPainter, QColor, 
     QPen, QKeySequence, QBrush, QFont
@@ -130,7 +130,7 @@ class OMPictureManager(QMainWindow):
 
         # Left Dummy Spacer to perfectly center the title
         left_dummy = QWidget()
-        left_dummy.setFixedWidth(70)
+        left_dummy.setFixedWidth(100)
         header_lay.addWidget(left_dummy)
         header_lay.addStretch()
 
@@ -141,7 +141,7 @@ class OMPictureManager(QMainWindow):
 
         header_lay.addStretch()
 
-        # Right Minimise & Close Buttons
+        # Right Controls: Minimise, Maximise/Restore & Close Buttons
         right_box = QWidget()
         right_lay = QHBoxLayout(right_box)
         right_lay.setContentsMargins(0, 0, 0, 0)
@@ -151,6 +151,11 @@ class OMPictureManager(QMainWindow):
         btn_min.setProperty("class", "WinBtn")
         btn_min.clicked.connect(self.showMinimized)
         right_lay.addWidget(btn_min)
+
+        self.btn_max = QPushButton("◻")
+        self.btn_max.setProperty("class", "WinBtn")
+        self.btn_max.clicked.connect(self.toggle_maximize)
+        right_lay.addWidget(self.btn_max)
 
         btn_close = QPushButton("✕")
         btn_close.setObjectName("CloseBtn")
@@ -364,13 +369,24 @@ class OMPictureManager(QMainWindow):
             self.old_pos = event.globalPosition().toPoint()
 
     def mouseMoveEvent(self, event):
-        if self.old_pos is not None:
+        if self.old_pos is not None and not self.isMaximized():
             delta = event.globalPosition().toPoint() - self.old_pos
             self.move(self.x() + delta.x(), self.y() + delta.y())
             self.old_pos = event.globalPosition().toPoint()
 
     def mouseReleaseEvent(self, event):
         self.old_pos = None
+
+    # ----------------- MAXIMIZE / RESTORE LOGIC -----------------
+    def toggle_maximize(self):
+        if self.isMaximized():
+            self.showNormal()
+            self.btn_max.setText("◻") 
+            self.centralWidget().layout().setContentsMargins(14, 10, 14, 14)
+        else:
+            self.showMaximized()
+            self.btn_max.setText("❐")
+            self.centralWidget().layout().setContentsMargins(0, 0, 0, 0)
 
     # ----------------- THEMES -----------------
     def apply_palette(self, name):
