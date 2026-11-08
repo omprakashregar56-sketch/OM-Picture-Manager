@@ -2,7 +2,7 @@ import sys
 import os
 import io
 from PIL import Image, ImageEnhance
-from PyQt6.QtCore import Qt, QRectF, QSize, QPoint, QSettings
+from PyQt6.QtCore import Qt, QRectF, QSize, QSettings
 from PyQt6.QtGui import (
     QAction, QIcon, QPixmap, QImage, QPainter, QColor, 
     QPen, QKeySequence, QBrush, QFont
@@ -19,6 +19,12 @@ from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 
 import config
 import theme_engine
+
+def get_resource_path(relative_path):
+    """ PyInstaller exe aur local development dono ke liye sahi path dhundhta hai """
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
 
 class CropOverlay(QGraphicsRectItem):
     def __init__(self):
@@ -94,6 +100,14 @@ class OMPictureManager(QMainWindow):
         self.load_persisted_palette()
 
     def init_ui(self):
+        # Window Icon Setup (uses uploaded icon.ico)
+        icon_path = get_resource_path("icon.ico")
+        if os.path.exists(icon_path):
+            app_icon = QIcon(icon_path)
+            self.setWindowIcon(app_icon)
+            QApplication.setWindowIcon(app_icon)
+
+        # Main Root Container
         root_container = QWidget(self)
         root_container.setObjectName("RootWidget")
         self.setCentralWidget(root_container)
@@ -106,26 +120,28 @@ class OMPictureManager(QMainWindow):
 
         root_layout = QVBoxLayout(root_container)
         root_layout.setContentsMargins(14, 10, 14, 14)
-        root_layout.setSpacing(6)
+        root_layout.setSpacing(4)
 
-        # ----------------- 1. TOP TITLE BAR (CENTER TITLE, RIGHT BUTTONS) -----------------
+        # ----------------- 1. TOP HEADER (CENTER TITLE, RIGHT CONTROLS) -----------------
         top_header = QWidget()
         top_header.setObjectName("TopHeaderBar")
-        header_grid = QGridLayout(top_header)
-        header_grid.setContentsMargins(4, 2, 4, 2)
+        header_lay = QHBoxLayout(top_header)
+        header_lay.setContentsMargins(10, 4, 10, 0)
 
-        # Left Spacer placeholder
+        # Left Dummy Spacer to perfectly center the title
         left_dummy = QWidget()
         left_dummy.setFixedWidth(70)
-        header_grid.addWidget(left_dummy, 0, 0, Qt.AlignmentFlag.AlignLeft)
+        header_lay.addWidget(left_dummy)
+        header_lay.addStretch()
 
         # Center Bold Title
         self.title_lbl = QLabel(config.APP_NAME)
         self.title_lbl.setObjectName("AppHeaderTitle")
-        self.title_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        header_grid.addWidget(self.title_lbl, 0, 1, Qt.AlignmentFlag.AlignCenter)
+        header_lay.addWidget(self.title_lbl)
 
-        # Right Controls (Minimise, Close)
+        header_lay.addStretch()
+
+        # Right Minimise & Close Buttons
         right_box = QWidget()
         right_lay = QHBoxLayout(right_box)
         right_lay.setContentsMargins(0, 0, 0, 0)
@@ -142,19 +158,19 @@ class OMPictureManager(QMainWindow):
         btn_close.clicked.connect(self.close)
         right_lay.addWidget(btn_close)
 
-        header_grid.addWidget(right_box, 0, 2, Qt.AlignmentFlag.AlignRight)
+        header_lay.addWidget(right_box)
         root_layout.addWidget(top_header)
 
-        # ----------------- 2. MENU BAR (LEFT ALIGNED BELOW TITLE) -----------------
-        menubar_container = QWidget()
-        menu_box = QHBoxLayout(menubar_container)
-        menu_box.setContentsMargins(4, 0, 0, 2)
+        # ----------------- 2. LEFT-ALIGNED MENU BAR -----------------
+        menu_container = QWidget()
+        menu_lay = QHBoxLayout(menu_container)
+        menu_lay.setContentsMargins(8, 0, 8, 4)
         
         self.nav_menu = QMenuBar()
-        menu_box.addWidget(self.nav_menu)
-        menu_box.addStretch()
+        menu_lay.addWidget(self.nav_menu)
+        menu_lay.addStretch()
 
-        # Menu: File
+        # File Menu
         file_menu = self.nav_menu.addMenu("File")
         act_open = QAction("Open Photo...", self)
         act_open.setShortcut(QKeySequence.StandardKey.Open)
@@ -176,7 +192,7 @@ class OMPictureManager(QMainWindow):
         act_exit.triggered.connect(self.close)
         file_menu.addAction(act_exit)
 
-        # Menu: Edit
+        # Edit Menu
         edit_menu = self.nav_menu.addMenu("Edit")
         act_crop = QAction("Crop Selection", self)
         act_crop.triggered.connect(self.execute_crop)
@@ -194,14 +210,14 @@ class OMPictureManager(QMainWindow):
         act_reset.triggered.connect(self.reset_all_transforms)
         edit_menu.addAction(act_reset)
 
-        # Menu: Theme
+        # Theme Menu
         theme_menu = self.nav_menu.addMenu("Theme")
         for pal_name in theme_engine.ACCENT_PALETTES.keys():
             t_action = QAction(pal_name, self)
             t_action.triggered.connect(lambda ch, p=pal_name: self.apply_palette(p))
             theme_menu.addAction(t_action)
 
-        # Menu: Tools
+        # Tools Menu
         tools_menu = self.nav_menu.addMenu("Tools")
         act_pass = QAction("Passport Crop (3.5x4.5)", self)
         act_pass.triggered.connect(lambda: self.set_preset_crop(3.5/4.5))
@@ -215,21 +231,21 @@ class OMPictureManager(QMainWindow):
         act_kb.triggered.connect(self.export_target_kb)
         tools_menu.addAction(act_kb)
 
-        # Menu: Help
+        # Help Menu
         help_menu = self.nav_menu.addMenu("Help")
         act_guide = QAction("Quick Instructions", self)
         act_guide.triggered.connect(self.show_help_dialog)
         help_menu.addAction(act_guide)
 
-        # Menu: About
+        # About Menu
         about_menu = self.nav_menu.addMenu("About")
         act_about = QAction("About OM Picture Manager", self)
         act_about.triggered.connect(self.show_about_dialog)
         about_menu.addAction(act_about)
 
-        root_layout.addWidget(menubar_container)
+        root_layout.addWidget(menu_container)
 
-        # ----------------- 3. CENTRAL WORKSPACE -----------------
+        # ----------------- 3. CENTRAL WORKSPACE (VIEWER + TOOLBOX) -----------------
         splitter = QSplitter(Qt.Orientation.Horizontal)
         root_layout.addWidget(splitter)
 
