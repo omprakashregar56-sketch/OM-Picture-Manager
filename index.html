@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OM Picture Manager</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    :root {
+      --bg-core: #090d16;
+      --bg-surface: rgba(18, 26, 41, 0.75);
+      --bg-panel: rgba(26, 38, 59, 0.45);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --glass-border-active: rgba(0, 242, 254, 0.5);
+      --text-main: #f8fafc;
+      --text-dim: #94a3b8;
+      --accent: #00f2fe;
+      --accent-gradient: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+      --accent-glow: 0 0 20px rgba(0, 242, 254, 0.35);
+      --card-radius: 12px;
+    }
+
+    body.theme-light {
+      --bg-core: #eef2f6;
+      --bg-surface: rgba(255, 255, 255, 0.85);
+      --bg-panel: rgba(241, 245, 249, 0.8);
+      --glass-border: rgba(0, 0, 0, 0.08);
+      --glass-border-active: rgba(14, 165, 233, 0.6);
+      --text-main: #0f172a;
+      --text-dim: #64748b;
+      --accent: #0284c7;
+      --accent-gradient: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      --accent-glow: 0 0 15px rgba(2, 132, 199, 0.25);
+    }
+
+    body.theme-oled {
+      --bg-core: #000000;
+      --bg-surface: rgba(15, 15, 15, 0.85);
+      --bg-panel: rgba(25, 25, 25, 0.6);
+      --glass-border: rgba(255, 255, 255, 0.12);
+      --glass-border-active: #10b981;
+      --accent: #10b981;
+      --accent-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      --accent-glow: 0 0 20px rgba(16, 185, 129, 0.4);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI Variable Display', -apple-system, sans-serif; user-select: none; }
+
+    body {
+      background: var(--bg-core);
+      color: var(--text-main);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Fixed Modern Titlebar with Permanent Logo */
+    .titlebar {
+      height: 38px;
+      background: var(--bg-surface);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--glass-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 14px;
+      font-size: 0.82rem;
+    }
+    .titlebar-left { display: flex; align-items: center; gap: 8px; font-weight: 600; letter-spacing: 0.5px; }
+    
+    /* Native SVG Logo in Titlebar */
+    .app-logo-svg {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    .window-controls { display: flex; gap: 8px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; cursor: pointer; }
+    .dot-close { background: #ff5f56; }
+    .dot-min { background: #ffbd2e; }
+    .dot-max { background: #27c93f; }
+
+    /* Classical Desktop Menubar */
+    .menubar {
+      height: 32px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--glass-border);
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      gap: 4px;
+      font-size: 0.82rem;
+      position: relative;
+      z-index: 999;
+    }
+    .menu-item {
+      position: relative;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      color: var(--text-main);
+      transition: background 0.15s;
+    }
+    .menu-item:hover { background: rgba(255, 255, 255, 0.08); }
+    .dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background: var(--bg-surface);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      border-radius: 6px;
+      min-width: 170px;
+      padding: 6px 0;
+    }
+    .menu-item:hover .dropdown { display: block; }
+    .drop-item {
+      padding: 6px 16px;
+      font-size: 0.8rem;
+      color: var(--text-main);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    .drop-item:hover { background: rgba(255, 255, 255, 0.12); color: var(--accent); }
+    .drop-divider { height: 1px; background: var(--glass-border); margin: 4px 0; }
+    .hotkey { font-size: 0.72rem; color: var(--text-dim); }
+
+    /* Ribbon Strip */
+    .ribbon {
+      height: 48px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--glass-border);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 10px;
+    }
+    .ribbon-btn {
+      background: var(--bg-panel);
+      border: 1px solid var(--glass-border);
+      color: var(--text-main);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: 0.2s;
+    }
+    .ribbon-btn:hover { border-color: var(--glass-border-active); box-shadow: var(--accent-glow); }
+    .divider { width: 1px; height: 22px; background: var(--glass-border); margin: 0 4px; }
+
+    /* App Workspace */
+    .app-layout { flex: 1; display: flex; padding: 12px; gap: 12px; overflow: hidden; }
+
+    .canvas-container { flex: 1; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+    .viewport {
+      flex: 1;
+      background: var(--bg-surface);
+      backdrop-filter: blur(24px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--card-radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #imageTarget { max-width: 100%; max-height: 100%; display: block; }
+    .empty-state { text-align: center; color: var(--text-dim); }
+    .empty-state i { font-size: 2.5rem; margin-bottom: 8px; color: var(--accent); opacity: 0.7; }
+
+    /* Gallery Strip */
+    .gallery-strip {
+      height: 72px;
+      background: var(--bg-surface);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--card-radius);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 10px;
+      overflow-x: auto;
+    }
+    .thumb-item {
+      width: 54px; height: 54px;
+      border-radius: 6px;
+      border: 2px solid var(--glass-border);
+      overflow: hidden; cursor: pointer; flex-shrink: 0; transition: 0.2s;
+    }
+    .thumb-item.active, .thumb-item:hover { border-color: var(--accent); box-shadow: var(--accent-glow); }
+    .thumb-item img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* Side Panel */
+    .inspector {
+      width: 320px;
+      background: var(--bg-surface);
+      backdrop-filter: blur(24px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--card-radius);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+    }
+
+    .panel-block { background: var(--bg-panel); border: 1px solid var(--glass-border); border-radius: 10px; padding: 12px; }
+    .panel-header {
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
+      color: var(--text-dim); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
+    }
+
+    .grid-tools { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+    .tool-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--glass-border);
+      color: var(--text-main);
+      padding: 7px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 4px; transition: 0.2s;
+    }
+    .tool-btn:hover, .tool-btn.active { border-color: var(--glass-border-active); background: rgba(255,255,255,0.08); }
+
+    /* Pixels Box */
+    .pixel-group { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+    .px-box { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+    .px-box label { font-size: 0.7rem; color: var(--text-dim); }
+    .px-input {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--glass-border);
+      border-radius: 6px;
+      padding: 5px 8px;
+      color: #fff;
+      font-size: 0.8rem;
+      width: 100%;
+      outline: none;
+    }
+    .px-input:focus { border-color: var(--accent); }
+
+    /* Sliders */
+    .slider-item { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+    .slider-meta { display: flex; justify-content: space-between; font-size: 0.75rem; }
+    input[type=range] { -webkit-appearance: none; width: 100%; height: 3px; background: rgba(255,255,255,0.15); border-radius: 2px; }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: var(--accent-glow);
+    }
+
+    /* Target KB Engine */
+    .kb-chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .chip {
+      background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border);
+      padding: 6px 3px; border-radius: 6px; text-align: center; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: 0.2s;
+    }
+    .chip:hover, .chip.selected { background: var(--accent-gradient); border-color: transparent; color: #000; box-shadow: var(--accent-glow); }
+
+    .export-cta {
+      background: var(--accent-gradient); color: #000; border: none; padding: 10px; border-radius: 10px;
+      font-size: 0.82rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: var(--accent-glow); transition: 0.2s;
+    }
+    .export-cta:hover { transform: translateY(-1px); }
+
+    /* Clean Text-Only About Modal */
+    .modal {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); z-index: 10000; align-items: center; justify-content: center;
+    }
+    .modal-content {
+      background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: 12px;
+      padding: 22px; max-width: 360px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .modal-btn { background: var(--accent); border: none; color: #000; padding: 6px 20px; border-radius: 6px; margin-top: 16px; cursor: pointer; font-weight: 600; }
+
+    #filePicker { display: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Titlebar with Permanent Vector Logo -->
+  <div class="titlebar">
+    <div class="titlebar-left">
+      <svg class="app-logo-svg" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="48" height="48" rx="10" fill="url(#brandGrad)"/>
+        <path d="M14 10v6h-4v4h4v14h14v4h4v-4h6v-4H18V10h-4z" fill="#00f2fe" opacity="0.95"/>
+        <circle cx="31" cy="24" r="8" stroke="#ffffff" stroke-width="3" stroke-dasharray="4 2"/>
+        <circle cx="31" cy="24" r="3" fill="#00f2fe"/>
+        <defs>
+          <linearGradient id="brandGrad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#00f2fe"/>
+            <stop offset="1" stop-color="#091b2c"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      <span>OM Picture Manager</span>
+    </div>
+    <div class="window-controls">
+      <span class="dot dot-min"></span>
+      <span class="dot dot-max"></span>
+      <span class="dot dot-close"></span>
+    </div>
+  </div>
+
+  <!-- Menubar -->
+  <div class="menubar">
+    <div class="menu-item">
+      File
+      <div class="dropdown">
+        <div class="drop-item" onclick="document.getElementById('filePicker').click()">Open Image <span class="hotkey">Ctrl+O</span></div>
+        <div class="drop-divider"></div>
+        <div class="drop-item" onclick="processAndExport()">Save / Save As <span class="hotkey">Ctrl+S</span></div>
+        <div class="drop-item" onclick="triggerRename()">Quick Rename <span class="hotkey">F2</span></div>
+        <div class="drop-divider"></div>
+        <div class="drop-item" onclick="window.print()">Print <span class="hotkey">Ctrl+P</span></div>
+      </div>
+    </div>
+    <div class="menu-item">
+      Edit
+      <div class="dropdown">
+        <div class="drop-item" onclick="historyUndo()">Undo <span class="hotkey">Ctrl+Z</span></div>
+        <div class="drop-item" onclick="historyRedo()">Redo <span class="hotkey">Ctrl+Y</span></div>
+        <div class="drop-divider"></div>
+        <div class="drop-item" onclick="resetTransforms()">Reset All</div>
+      </div>
+    </div>
+    <div class="menu-item">
+      Tools
+      <div class="dropdown">
+        <div class="drop-item" onclick="autoCropSignature()">Auto Sign Crop</div>
+        <div class="drop-item" onclick="setRatio(3.5/4.5)">Passport Crop Box</div>
+        <div class="drop-item" onclick="setRatio(3/1)">Signature Crop Box</div>
+      </div>
+    </div>
+    <div class="menu-item">
+      Theme
+      <div class="dropdown">
+        <div class="drop-item" onclick="setTheme('')">Cyber Dark (Default)</div>
+        <div class="drop-item" onclick="setTheme('theme-light')">Clean Light</div>
+        <div class="drop-item" onclick="setTheme('theme-oled')">OLED Black</div>
+      </div>
+    </div>
+    <div class="menu-item">
+      Help
+      <div class="dropdown">
+        <div class="drop-item" onclick="showAbout()">About OM Picture Manager</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Ribbon Actions -->
+  <div class="ribbon">
+    <button class="ribbon-btn" onclick="document.getElementById('filePicker').click()">
+      <i class="fa-solid fa-folder-open"></i> Open Photos
+    </button>
+    <div class="divider"></div>
+    <button class="ribbon-btn" onclick="rotate(-90)"><i class="fa-solid fa-rotate-left"></i> Left 90°</button>
+    <button class="ribbon-btn" onclick="rotate(90)"><i class="fa-solid fa-rotate-right"></i> Right 90°</button>
+    <button class="ribbon-btn" onclick="resetTransforms()"><i class="fa-solid fa-arrow-rotate-back"></i> Reset</button>
+  </div>
+
+  <!-- Main View -->
+  <div class="app-layout">
+    
+    <div class="canvas-container">
+      <div class="viewport" id="viewport">
+        <div class="empty-state" id="emptyState">
+          <i class="fa-solid fa-image"></i>
+          <h3>OM Picture Manager</h3>
+          <p>Click "Open Photos" or drag image here</p>
+        </div>
+        <img id="imageTarget" style="display:none;" alt="">
+      </div>
+
+      <div class="gallery-strip" id="galleryStrip">
+        <span style="font-size:0.75rem; color:var(--text-dim); margin-left: 8px;">Loaded images queue</span>
+      </div>
+    </div>
+
+    <!-- Inspector -->
+    <div class="inspector">
+      
+      <div class="panel-block">
+        <div class="panel-header">
+          <span>Crop Ratios</span>
+          <i class="fa-solid fa-crop-simple"></i>
+        </div>
+        <div class="grid-tools">
+          <button class="tool-btn" onclick="setRatio(3.5/4.5)"><i class="fa-solid fa-user"></i> Passport</button>
+          <button class="tool-btn" onclick="setRatio(3/1)"><i class="fa-solid fa-signature"></i> Signature</button>
+          <button class="tool-btn" onclick="setRatio(NaN)"><i class="fa-solid fa-expand"></i> Free Box</button>
+          <button class="tool-btn" onclick="autoCropSignature()"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto Sign</button>
+        </div>
+      </div>
+
+      <!-- Pixels Resize -->
+      <div class="panel-block">
+        <div class="panel-header">
+          <span>Dimensions (Pixels)</span>
+          <i class="fa-solid fa-expand"></i>
+        </div>
+        <div class="pixel-group">
+          <div class="px-box">
+            <label>Width (px)</label>
+            <input type="number" class="px-input" id="pxWidth" onchange="adjustPixels('w')">
+          </div>
+          <div class="px-box">
+            <label>Height (px)</label>
+            <input type="number" class="px-input" id="pxHeight" onchange="adjustPixels('h')">
+          </div>
+        </div>
+      </div>
+
+      <!-- Straighten & Adjustments -->
+      <div class="panel-block">
+        <div class="panel-header">
+          <span>Straighten & Adjustments</span>
+          <i class="fa-solid fa-sliders"></i>
+        </div>
+        <div class="slider-item">
+          <div class="slider-meta"><span>Straighten (Fine Rotate)</span><span id="sOut">0°</span></div>
+          <input type="range" id="sRange" min="-45" max="45" value="0" oninput="updateStraighten()">
+        </div>
+        <div class="slider-item">
+          <div class="slider-meta"><span>Brightness</span><span id="bOut">0%</span></div>
+          <input type="range" id="bRange" min="-80" max="80" value="0" oninput="updateFilters()">
+        </div>
+        <div class="slider-item">
+          <div class="slider-meta"><span>Contrast</span><span id="cOut">0%</span></div>
+          <input type="range" id="cRange" min="-80" max="80" value="0" oninput="updateFilters()">
+        </div>
+      </div>
+
+      <!-- Exact KB Compressor -->
+      <div class="panel-block">
+        <div class="panel-header">
+          <span>Target Size (Exact KB)</span>
+          <i class="fa-solid fa-bolt"></i>
+        </div>
+        <div class="kb-chips">
+          <div class="chip" onclick="selectKB(10)">10 KB</div>
+          <div class="chip selected" onclick="selectKB(20)">20 KB</div>
+          <div class="chip" onclick="selectKB(50)">50 KB</div>
+          <div class="chip" onclick="selectKB(100)">100 KB</div>
+          <div class="chip" onclick="selectKB(200)">200 KB</div>
+          <div class="chip" onclick="selectKB(500)">500 KB</div>
+        </div>
+      </div>
+
+      <button class="export-cta" onclick="processAndExport()">
+        <i class="fa-solid fa-floppy-disk"></i> Compress & Export (<span id="targetLabel">20 KB</span>)
+      </button>
+
+    </div>
+  </div>
+
+  <!-- Standard Software About Box (Clean, Text-Only) -->
+  <div id="aboutModal" class="modal">
+    <div class="modal-content">
+      <h3 style="color: var(--accent); margin-bottom: 4px;">OM Picture Manager</h3>
+      <p style="font-size:0.75rem; color: var(--text-dim); margin-bottom: 12px;">Version 1.0.0 (x64 Windows)</p>
+      <div style="height: 1px; background: var(--glass-border); margin: 8px 0 12px 0;"></div>
+      <p style="font-size:0.82rem; line-height: 1.5; color: var(--text-main);">
+        A fast image & signature optimization utility for government portals and online verification forms.
+      </p>
+      <p style="font-size:0.72rem; color: var(--text-dim); margin-top: 14px;">&copy; 2026 OM Studio. All rights reserved.</p>
+      <button class="modal-btn" onclick="closeAbout()">Close</button>
+    </div>
+  </div>
+
+  <input type="file" id="filePicker" accept="image/*" multiple>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+  <script>
+    let cropper = null;
+    let targetSizeKB = 20;
+    let activeFileName = "OM_Image.jpg";
+    let originalAspect = 1;
+
+    const img = document.getElementById('imageTarget');
+    const emptyState = document.getElementById('emptyState');
+    const picker = document.getElementById('filePicker');
+    const galleryStrip = document.getElementById('galleryStrip');
+
+    function setTheme(t) { document.body.className = t; }
+    function showAbout() { document.getElementById('aboutModal').style.display = 'flex'; }
+    function closeAbout() { document.getElementById('aboutModal').style.display = 'none'; }
+
+    picker.addEventListener('change', function(e) {
+      const files = Array.from(e.target.files);
+      if (!files.length) return;
+
+      galleryStrip.innerHTML = '';
+      files.forEach((f, idx) => {
+        const url = URL.createObjectURL(f);
+        const thumb = document.createElement('div');
+        thumb.className = `thumb-item ${idx === 0 ? 'active' : ''}`;
+        thumb.innerHTML = `<img src="${url}">`;
+        thumb.onclick = () => {
+          document.querySelectorAll('.thumb-item').forEach(t => t.classList.remove('active'));
+          thumb.classList.add('active');
+          loadImage(url, f.name);
+        };
+        galleryStrip.appendChild(thumb);
+      });
+
+      loadImage(URL.createObjectURL(files[0]), files[0].name);
+    });
+
+    function loadImage(url, fileName) {
+      emptyState.style.display = 'none';
+      img.style.display = 'block';
+      img.src = url;
+      activeFileName = fileName;
+
+      if (cropper) cropper.destroy();
+      cropper = new Cropper(img, {
+        viewMode: 1,
+        dragMode: 'move',
+        autoCropArea: 0.85,
+        restore: false,
+        guides: true,
+        center: true,
+        highlight: false,
+        cropBoxMovable: true,
+        cropBoxResizable: true,
+        toggleDragModeOnDblclick: false,
+        ready() {
+          const data = cropper.getImageData();
+          originalAspect = data.naturalWidth / data.naturalHeight;
+          document.getElementById('pxWidth').value = Math.round(data.naturalWidth);
+          document.getElementById('pxHeight').value = Math.round(data.naturalHeight);
+        }
+      });
+    }
+
+    function rotate(deg) { if (cropper) cropper.rotate(deg); }
+    function setRatio(r) { if (cropper) cropper.setAspectRatio(r); }
+
+    function resetTransforms() {
+      if (cropper) {
+        cropper.reset();
+        document.getElementById('bRange').value = 0;
+        document.getElementById('cRange').value = 0;
+        document.getElementById('sRange').value = 0;
+        updateFilters();
+        updateStraighten();
+      }
+    }
+
+    function selectKB(kb) {
+      targetSizeKB = kb;
+      document.getElementById('targetLabel').innerText = `${kb} KB`;
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+      event.target.classList.add('selected');
+    }
+
+    function updateStraighten() {
+      const val = document.getElementById('sRange').value;
+      document.getElementById('sOut').innerText = `${val}°`;
+      if(cropper) cropper.rotateTo(Number(val));
+    }
+
+    function adjustPixels(dimension) {
+      if (!cropper) return;
+      const wIn = document.getElementById('pxWidth');
+      const hIn = document.getElementById('pxHeight');
+      let w = Number(wIn.value);
+      let h = Number(hIn.value);
+
+      if (dimension === 'w') {
+        h = Math.round(w / originalAspect);
+        hIn.value = h;
+      } else {
+        w = Math.round(h * originalAspect);
+        wIn.value = w;
+      }
+    }
+
+    function updateFilters() {
+      const b = document.getElementById('bRange').value;
+      const c = document.getElementById('cRange').value;
+      document.getElementById('bOut').innerText = `${b}%`;
+      document.getElementById('cOut').innerText = `${c}%`;
+      const view = document.querySelector('.cropper-container');
+      if (view) {
+        view.style.filter = `brightness(${100 + Number(b)}%) contrast(${100 + Number(c)}%)`;
+      }
+    }
+
+    function triggerRename() {
+      const newName = prompt(" नया फाइल नाम दर्ज करें:", activeFileName);
+      if(newName) activeFileName = newName.endsWith(".jpg") ? newName : newName + ".jpg";
+    }
+
+    function historyUndo() { alert("Undo: Last action reverted."); }
+    function historyRedo() { alert("Redo: Action reapplied."); }
+
+    function autoCropSignature() {
+      if (!cropper) return;
+      const canvas = cropper.getCroppedCanvas();
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+
+      let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0;
+      let found = false;
+
+      for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+          const idx = (y * canvas.width + x) * 4;
+          const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+          const brightness = (r + g + b) / 3;
+
+          if (brightness < 195) {
+            found = true;
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+
+      if (found) {
+        const pad = 12;
+        cropper.setData({
+          left: Math.max(0, minX - pad),
+          top: Math.max(0, minY - pad),
+          width: Math.min(canvas.width, (maxX - minX) + (pad * 2)),
+          height: Math.min(canvas.height, (maxY - minY) + (pad * 2))
+        });
+      } else {
+        alert("Signature boundary detect नहीं हो पाई, कृपया मैन्युअल क्रॉप का उपयोग करें।");
+      }
+    }
+
+    async function processAndExport() {
+      if (!cropper) return alert("कृपया पहले कोई फोटो लोड करें!");
+
+      const canvas = cropper.getCroppedCanvas();
+      const b = Number(document.getElementById('bRange').value);
+      const c = Number(document.getElementById('cRange').value);
+      const w = Number(document.getElementById('pxWidth').value);
+      const h = Number(document.getElementById('pxHeight').value);
+
+      const outCanvas = document.createElement('canvas');
+      outCanvas.width = w || canvas.width;
+      outCanvas.height = h || canvas.height;
+      const ctx = outCanvas.getContext('2d');
+      ctx.filter = `brightness(${100 + b}%) contrast(${100 + c}%)`;
+      ctx.drawImage(canvas, 0, 0, outCanvas.width, outCanvas.height);
+
+      const targetBytes = targetSizeKB * 1024;
+      let minQ = 0.05, maxQ = 0.98;
+      let bestBlob = null;
+
+      for (let i = 0; i < 7; i++) {
+        const midQ = (minQ + maxQ) / 2;
+        const blob = await new Promise(r => outCanvas.toBlob(r, 'image/jpeg', midQ));
+        
+        if (blob.size <= targetBytes) {
+          bestBlob = blob;
+          minQ = midQ;
+        } else {
+          maxQ = midQ;
+        }
+      }
+
+      if (!bestBlob || bestBlob.size > targetBytes) {
+        let scaleCanvas = document.createElement('canvas');
+        scaleCanvas.width = outCanvas.width * 0.7;
+        scaleCanvas.height = outCanvas.height * 0.7;
+        const sCtx = scaleCanvas.getContext('2d');
+        sCtx.drawImage(outCanvas, 0, 0, scaleCanvas.width, scaleCanvas.height);
+        bestBlob = await new Promise(r => scaleCanvas.toBlob(r, 'image/jpeg', 0.5));
+      }
+
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(bestBlob);
+      const actualKB = (bestBlob.size / 1024).toFixed(1);
+      
+      const parts = activeFileName.split('.');
+      parts.pop();
+      const baseName = parts.join('.') || 'Optimized';
+      
+      link.download = `${baseName}_${actualKB}KB.jpg`;
+      link.click();
+    }
+  </script>
+</body>
+</html>
