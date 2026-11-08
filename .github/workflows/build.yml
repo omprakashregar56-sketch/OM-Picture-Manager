@@ -1,0 +1,38 @@
+name: Build OM Picture Manager Exe
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pywebview pyinstaller
+
+      - name: Compile to High-Speed Standalone Exe
+        run: |
+          pyinstaller --noconsole --onedir --add-data "index.html;." --name "OM_Picture_Manager" app.py
+
+      - name: Zip Build Output
+        run: |
+          powershell Compress-Archive -Path dist/OM_Picture_Manager -DestinationPath dist/OM_Picture_Manager_Windows.zip
+
+      - name: Upload Finished Exe Zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: OM_Picture_Manager_Release
+          path: dist/OM_Picture_Manager_Windows.zip
