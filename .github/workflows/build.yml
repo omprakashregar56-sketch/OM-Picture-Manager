@@ -1,3 +1,50 @@
-- name: Build Standalone Exe with Themes
+name: Build and Release OM Picture Manager
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Build Dependencies
         run: |
-          pyinstaller --noconsole --onedir --icon="app_icon.ico" --add-data "theme_engine.py;." --add-data "config.py;." --add-data "app_icon.png;." --name "OM_Picture_Manager" main.py
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Compile Exe with Assets and External UI Files
+        run: |
+          pyinstaller --noconsole --onedir --icon="icon.ico" --add-data "theme_engine.py;." --add-data "config.py;." --add-data "icon.ico;." --name "OM_Picture_Manager" main.py
+
+      - name: Compress Build to Distribution Zip
+        run: |
+          powershell Compress-Archive -Path dist/OM_Picture_Manager -DestinationPath OM_Picture_Manager_Windows.zip
+
+      - name: Publish to GitHub Releases Page
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v2.0.0
+          name: "OM Picture Manager v2.0.0 (Fluent Glass Release)"
+          body: |
+            ### ⚡ OM Picture Manager - Release Update
+            - **Windows 11 Fluent Glass Design**: Soft rounded corners & modern typography.
+            - **Isolated UI Engine**: Custom styling via Material Soft themes.
+            - **Features**: Exact KB compressor, Passport & Auto Sign Crop, Native Printing.
+          files: OM_Picture_Manager_Windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
